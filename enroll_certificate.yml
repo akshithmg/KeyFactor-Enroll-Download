@@ -1,7 +1,7 @@
 ---
 - name: Enroll and download Keyfactor certificate via AWX
-  hosts: Server01
-  gather_facts: yes
+  hosts: server01
+  gather_facts: no
 
   # Variables from AWX Survey
   # - change_number
