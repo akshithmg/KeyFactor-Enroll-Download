@@ -1,0 +1,25 @@
+{
+  "CustomFriendlyName": "{{ CN_NAME }}",
+  "Subject": "CN={{ CN_NAME }}, OU=AU Technology Services, O=Fidelity National Information Services, L=Melbourne, S=VIC, C=AU",
+  "Template": "{{ TEMPLATE }}",
+  "CertificateAuthority": "{{ CA_NAME }}",
+  "Password": "{{ PASSWORD_CONFIRM }}",
+  "Timestamp": "{{ TIMESTAMP }}",
+  "SANs": {
+    "DNS": {{ DNS_JSON }},
+    "IP": {{ IP_JSON }}
+  },
+  "Metadata": {
+    "Email-Contact": "{{ METADATA_EMAIL }}",
+    "Device-Type": "{{ METADATA_DEVICE }}",
+    "DataCenter-Location": "{{ METADATA_DATACENTER }}",
+    "Description": "{{ METADATA_DESCRIPTION }}",
+    "Notification": "True",
+    "Folder": "{{ METADATA_FOLDER }}",
+    "Sub-Folder": "{{ METADATA_SUB_FOLDER }}",
+    "Application-Contact-Primary": "{{ METADATA_PRIMARY_CONTACT }}",
+    "Application-Contact-Secondary": "{{ METADATA_SECONDARY_CONTACT }}",
+    "Permissions": "{{ METADATA_PERMISSIONS }}",
+    "Contact": "{{ METADATA_CONTACT }}"
+  }
+}

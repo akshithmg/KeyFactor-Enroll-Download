@@ -1,0 +1,110 @@
+---
+- name: Enroll and download Keyfactor certificate via AWX
+  hosts: localhost
+  connection: local
+  gather_facts: no
+
+  # Variables from AWX Survey
+  # - change_number
+  # - cn_name
+  # - ca_name
+  # - password
+  # - dns_names_input
+  # - ip_addresses_input
+  # - metadata_email_contact
+  # - metadata_device_type
+  # - metadata_datacenter_location
+  # - metadata_primary_contact
+  # - metadata_secondary_contact
+  # - metadata_permissions
+  # - metadata_folder          <-- New
+  # - metadata_sub_folder      <-- New
+  # - metadata_contact         <-- New
+  # - metadata_description     <-- New
+
+  tasks:
+    - name: Prepare SANs for JSON payload
+      set_fact:
+        dns_names: "{{ dns_names_input.split(',') | map('trim') | list }}"
+        ip_addresses: "{{ ip_addresses_input.split(',') | map('trim') | list }}"
+
+    - name: Generate certificate enrollment payload
+      ansible.builtin.template:
+        src: payload.json.j2
+        dest: "{{ inventory_dir }}/payload.json"
+      vars:
+        TIMESTAMP: "{{ ansible_date_time.iso8601 }}"
+        TEMPLATE: "WebServer(13Month-ClientandServerAuth)PROD"
+        CN_NAME: "{{ cn_name }}"
+        CA_NAME: "{{ ca_name }}"
+        PASSWORD_CONFIRM: "{{ password }}"
+        DNS_JSON: "{{ dns_names | to_json }}"
+        IP_JSON: "{{ ip_addresses | to_json }}"
+        METADATA_EMAIL: "{{ metadata_email_contact }}"
+        METADATA_DEVICE: "{{ metadata_device_type }}"
+        METADATA_DATACENTER: "{{ metadata_datacenter_location }}"
+        METADATA_PRIMARY_CONTACT: "{{ metadata_primary_contact }}"
+        METADATA_SECONDARY_CONTACT: "{{ metadata_secondary_contact }}"
+        METADATA_PERMISSIONS: "{{ metadata_permissions }}"
+        METADATA_FOLDER: "{{ metadata_folder }}"
+        METADATA_SUB_FOLDER: "{{ metadata_sub_folder }}"
+        METADATA_CONTACT: "{{ metadata_contact }}"
+        METADATA_DESCRIPTION: "{{ metadata_description }}"
+
+    - name: Enroll PFX certificate
+      ansible.builtin.uri:
+        url: "{{ keyfactor_url }}/KeyfactorApi/Enrollment/PFX"
+        method: POST
+        headers:
+          Authorization: "Basic {{ auth }}"
+          Accept: "application/json"
+          x-certificateformat: "PFX"
+          X-Keyfactor-Requested-With: "XMLHttpRequest"
+          Content-Type: "application/json"
+        body: "{{ lookup('file', inventory_dir + '/payload.json') }}"
+        body_format: json
+        validate_certs: no
+        return_content: yes
+        dest: "{{ inventory_dir }}/response.json"
+        proxy: "{{ https_proxy }}"
+      register: enrollment_response
+
+    - name: Extract thumbprint from enrollment response
+      set_fact:
+        thumbprint: "{{ enrollment_response.json.CertificateInformation.Thumbprint }}"
+
+    - name: Download PFX certificate
+      ansible.builtin.uri:
+        url: "{{ keyfactor_url }}/KeyfactorApi/Certificates/recover"
+        method: POST
+        headers:
+          Authorization: "Basic {{ auth }}"
+          Content-Type: "application/json"
+          Accept: "application/octet-stream"
+          X-Keyfactor-Requested-With: "APIClient"
+          X-CertificateFormat: "PFX"
+        body:
+          Thumbprint: "{{ thumbprint }}"
+          IncludeChain: true
+          Password: "{{ password }}"
+        body_format: json
+        dest: "{{ inventory_dir }}/{{ cn_name }}.pfx"
+        validate_certs: no
+        proxy: "{{ https_proxy }}"
+      register: download_response
+
+    - name: Create backup directory
+      ansible.builtin.file:
+        path: "{{ inventory_dir }}/{{ change_number }}"
+        state: directory
+
+    - name: Move and backup files
+      ansible.builtin.command:
+        cmd: "mv {{ inventory_dir }}/payload.json {{ inventory_dir }}/response.json {{ inventory_dir }}/{{ change_number }}"
+
+    - name: Create tar archive of backup
+      ansible.builtin.archive:
+        path: "{{ inventory_dir }}/{{ change_number }}/"
+        dest: "{{ inventory_dir }}/{{ change_number }}.tar"
+        format: tar
+        remove: yes
