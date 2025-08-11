@@ -1,9 +1,10 @@
 ---
 - name: Enroll and download Keyfactor certificate via AWX
-  hosts: server01
+  hosts: localhost
+  connection: local
   gather_facts: yes
 
-  # Variables from AWX Survey
+  # These variables are expected to be passed by the AWX Survey or a vaulted file.
   # - change_number
   # - cn_name
   # - ca_name
@@ -16,23 +17,30 @@
   # - metadata_primary_contact
   # - metadata_secondary_contact
   # - metadata_permissions
-  # - metadata_folder          <-- New
-  # - metadata_sub_folder      <-- New
-  # - metadata_contact         <-- New
-  # - metadata_description     <-- New
+  # - metadata_folder
+  # - metadata_sub_folder
+  # - metadata_contact
+  # - metadata_description
+  # - keyfactor_url (from vaulted file)
+  # - https_proxy (from vaulted file)
+  # - auth (from vaulted file)
 
   tasks:
     - name: Prepare SANs for JSON payload
-      set_fact:
+      ansible.builtin.set_fact:
         dns_names: "{{ dns_names_input.split(',') | map('trim') | list }}"
         ip_addresses: "{{ ip_addresses_input.split(',') | map('trim') | list }}"
+
+    - name: Set timestamp variable from gathered facts
+      ansible.builtin.set_fact:
+        TIMESTAMP: "{{ ansible_date_time.iso8601 }}"
 
     - name: Generate certificate enrollment payload
       ansible.builtin.template:
         src: payload.json.j2
         dest: "{{ inventory_dir }}/payload.json"
       vars:
-        TIMESTAMP: "{{ ansible_date_time.iso8601 }}"
+        TIMESTAMP: "{{ TIMESTAMP }}"
         TEMPLATE: "WebServer(13Month-ClientandServerAuth)PROD"
         CN_NAME: "{{ cn_name }}"
         CA_NAME: "{{ ca_name }}"
@@ -50,7 +58,7 @@
         METADATA_CONTACT: "{{ metadata_contact }}"
         METADATA_DESCRIPTION: "{{ metadata_description }}"
 
-    - name: Enroll PFX certificate
+    - name: Enroll PFX certificate with Keyfactor API
       ansible.builtin.uri:
         url: "{{ keyfactor_url }}/KeyfactorApi/Enrollment/PFX"
         method: POST
@@ -69,10 +77,10 @@
       register: enrollment_response
 
     - name: Extract thumbprint from enrollment response
-      set_fact:
+      ansible.builtin.set_fact:
         thumbprint: "{{ enrollment_response.json.CertificateInformation.Thumbprint }}"
 
-    - name: Download PFX certificate
+    - name: Download PFX certificate from Keyfactor
       ansible.builtin.uri:
         url: "{{ keyfactor_url }}/KeyfactorApi/Certificates/recover"
         method: POST
@@ -90,13 +98,19 @@
         dest: "{{ inventory_dir }}/{{ cn_name }}.pfx"
         validate_certs: no
         proxy: "{{ https_proxy }}"
-      register: download_response
 
     - name: Create backup directory
       ansible.builtin.file:
         path: "{{ inventory_dir }}/{{ change_number }}"
         state: directory
 
-    - name: Move and backup files
+    - name: Move JSON and certificate files to backup directory
       ansible.builtin.command:
-        cmd: "mv {{ inventory_dir }}/payload.json {{ inventory_dir }}/response.json {{ inventory_dir }}/{{ change_number }}"
+        cmd: "mv {{ inventory_dir }}/payload.json {{ inventory_dir }}/response.json {{ inventory_dir }}/{{ cn_name }}.pfx {{ inventory_dir }}/{{ change_number }}"
+
+    - name: Create tar archive of backup
+      ansible.builtin.archive:
+        path: "{{ inventory_dir }}/{{ change_number }}"
+        dest: "{{ inventory_dir }}/{{ change_number }}.tar"
+        format: tar
+        remove: yes
