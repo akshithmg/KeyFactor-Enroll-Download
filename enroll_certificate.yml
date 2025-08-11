@@ -34,13 +34,6 @@
       ansible.builtin.set_fact:
         TIMESTAMP: "{{ ansible_date_time.iso8601 }}"
 
-    - name: Debug variables before generating payload
-      ansible.builtin.debug:
-        msg:
-          - "DNS Names: {{ dns_names }}"
-          - "IP Addresses: {{ ip_addresses }}"
-          - "Timestamp: {{ TIMESTAMP }}"
-
     - name: Generate certificate enrollment payload
       ansible.builtin.template:
         src: payload.json.j2
@@ -51,7 +44,6 @@
         CN_NAME: "{{ cn_name }}"
         CA_NAME: "{{ ca_name }}"
         PASSWORD_CONFIRM: "{{ password }}"
-        # Corrected variables: Use `dns_names` and `ip_addresses` from set_fact
         DNS_JSON: "{{ dns_names | to_json }}"
         IP_JSON: "{{ ip_addresses | to_json }}"
         METADATA_EMAIL: "{{ metadata_email_contact }}"
@@ -65,6 +57,11 @@
         METADATA_CONTACT: "{{ metadata_contact }}"
         METADATA_DESCRIPTION: "{{ metadata_description }}"
 
+    - name: Read payload.json from remote host to local memory
+      ansible.builtin.slurp:
+        src: "/tmp/{{ cn_name }}_payload.json"
+      register: payload_content
+
     - name: Enroll PFX certificate with Keyfactor API
       ansible.builtin.uri:
         url: "{{ keyfactor_url }}/KeyfactorApi/Enrollment/PFX"
@@ -75,7 +72,7 @@
           x-certificateformat: "PFX"
           X-Keyfactor-Requested-With: "XMLHttpRequest"
           Content-Type: "application/json"
-        body: "{{ lookup('file', '/tmp/' + cn_name + '_payload.json') }}"
+        body: "{{ payload_content.content | b64decode }}"
         body_format: json
         validate_certs: no
         return_content: yes
