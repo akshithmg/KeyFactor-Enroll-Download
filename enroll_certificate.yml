@@ -34,6 +34,13 @@
       ansible.builtin.set_fact:
         TIMESTAMP: "{{ ansible_date_time.iso8601 }}"
 
+    - name: Debug variables before generating payload
+      ansible.builtin.debug:
+        msg:
+          - "DNS Names: {{ dns_names }}"
+          - "IP Addresses: {{ ip_addresses }}"
+          - "Timestamp: {{ TIMESTAMP }}"
+
     - name: Generate certificate enrollment payload
       ansible.builtin.template:
         src: payload.json.j2
