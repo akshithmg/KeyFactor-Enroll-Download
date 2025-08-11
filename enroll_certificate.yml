@@ -37,7 +37,8 @@
     - name: Generate certificate enrollment payload
       ansible.builtin.template:
         src: payload.json.j2
-        dest: "{{ inventory_dir }}/payload.json"
+        # The dest path must exist on the remote server
+        dest: "/tmp/{{ cn_name }}_payload.json"
       vars:
         TIMESTAMP: "{{ TIMESTAMP }}"
         TEMPLATE: "WebServer(13Month-ClientandServerAuth)PROD"
@@ -67,11 +68,13 @@
           x-certificateformat: "PFX"
           X-Keyfactor-Requested-With: "XMLHttpRequest"
           Content-Type: "application/json"
-        body: "{{ lookup('file', inventory_dir + '/payload.json') }}"
+        # The lookup now references the file on the remote server
+        body: "{{ lookup('file', '/tmp/' + cn_name + '_payload.json') }}"
         body_format: json
         validate_certs: no
         return_content: yes
-        dest: "{{ inventory_dir }}/response.json"
+        # The dest path is also on the remote server
+        dest: "/tmp/{{ cn_name }}_response.json"
         proxy: "{{ https_proxy }}"
       register: enrollment_response
 
@@ -94,16 +97,23 @@
           IncludeChain: true
           Password: "{{ password }}"
         body_format: json
-        dest: "{{ inventory_dir }}/{{ cn_name }}.pfx"
+        # The dest path is also on the remote server
+        dest: "/tmp/{{ cn_name }}.pfx"
         validate_certs: no
         proxy: "{{ https_proxy }}"
 
     - name: Create backup directory
       ansible.builtin.file:
-        path: "{{ inventory_dir }}/{{ change_number }}"
+        path: "/tmp/{{ change_number }}"
         state: directory
 
     - name: Move JSON and certificate files to backup directory
       ansible.builtin.command:
-        cmd: "mv {{ inventory_dir }}/payload.json {{ inventory_dir }}/response.json {{ inventory_dir }}/{{ cn_name }}.pfx {{ inventory_dir }}/{{ change_number }}"
+        cmd: "mv /tmp/{{ cn_name }}_payload.json /tmp/{{ cn_name }}_response.json /tmp/{{ cn_name }}.pfx /tmp/{{ change_number }}"
 
+    - name: Create tar archive of backup
+      ansible.builtin.archive:
+        path: "/tmp/{{ change_number }}"
+        dest: "/tmp/{{ change_number }}.tar"
+        format: tar
+        remove: yes
