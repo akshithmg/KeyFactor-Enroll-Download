@@ -1,0 +1,4 @@
+---
+keyfactor_url: "https://fis.keyfactorpki.com"
+https_proxy: "http://10.56.24.125:10022"
+auth: "your_base64_encoded_auth_token"
