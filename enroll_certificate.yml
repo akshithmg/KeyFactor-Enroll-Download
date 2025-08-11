@@ -110,10 +110,3 @@
     - name: Move JSON and certificate files to backup directory
       ansible.builtin.command:
         cmd: "mv /tmp/{{ cn_name }}_payload.json /tmp/{{ cn_name }}_response.json /tmp/{{ cn_name }}.pfx /tmp/{{ change_number }}"
-
-    - name: Create tar archive of backup
-      ansible.builtin.archive:
-        path: "/tmp/{{ change_number }}"
-        dest: "/tmp/{{ change_number }}.tar"
-        format: tar
-        remove: yes
