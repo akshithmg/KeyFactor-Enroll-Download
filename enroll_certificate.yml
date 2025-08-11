@@ -6,7 +6,7 @@
   # These variables are expected to be passed by the AWX Survey or a vaulted file.
   # - change_number
   # - cn_name
-  # - ca_name
+  - ca_name
   # - password
   # - dns_names_input
   # - ip_addresses_input
@@ -57,7 +57,7 @@
         METADATA_CONTACT: "{{ metadata_contact }}"
         METADATA_DESCRIPTION: "{{ metadata_description }}"
 
-    - name: Read payload.json from remote host to local memory
+    - name: Read payload.json from remote host into memory
       ansible.builtin.slurp:
         src: "/tmp/{{ cn_name }}_payload.json"
       register: payload_content
@@ -77,8 +77,13 @@
         validate_certs: no
         return_content: yes
         dest: "/tmp/{{ cn_name }}_response.json"
-        use_proxy: no
+        use_proxy: yes
       register: enrollment_response
+
+    - name: Fail if API call was unsuccessful
+      ansible.builtin.fail:
+        msg: "Keyfactor API call failed with status code: {{ enrollment_response.status }} and response: {{ enrollment_response.content }}"
+      when: enrollment_response.status != 200
 
     - name: Extract thumbprint from enrollment response
       ansible.builtin.set_fact:
@@ -101,7 +106,7 @@
         body_format: json
         dest: "/tmp/{{ cn_name }}.pfx"
         validate_certs: no
-        use_proxy: no
+        use_proxy: yes
 
     - name: Create backup directory
       ansible.builtin.file:
