@@ -37,7 +37,6 @@
     - name: Generate certificate enrollment payload
       ansible.builtin.template:
         src: payload.json.j2
-        # The dest path must exist on the remote server
         dest: "/tmp/{{ cn_name }}_payload.json"
       vars:
         TIMESTAMP: "{{ TIMESTAMP }}"
@@ -45,8 +44,9 @@
         CN_NAME: "{{ cn_name }}"
         CA_NAME: "{{ ca_name }}"
         PASSWORD_CONFIRM: "{{ password }}"
-        DNS_JSON: "{{ dns_names_input | to_json }}"
-        IP_JSON: "{{ ip_addresses_input | to_json }}"
+        # Corrected variables: Use `dns_names` and `ip_addresses` from set_fact
+        DNS_JSON: "{{ dns_names | to_json }}"
+        IP_JSON: "{{ ip_addresses | to_json }}"
         METADATA_EMAIL: "{{ metadata_email_contact }}"
         METADATA_DEVICE: "{{ metadata_device_type }}"
         METADATA_DATACENTER: "{{ metadata_datacenter_location }}"
@@ -68,12 +68,10 @@
           x-certificateformat: "PFX"
           X-Keyfactor-Requested-With: "XMLHttpRequest"
           Content-Type: "application/json"
-        # The lookup now references the file on the remote server
         body: "{{ lookup('file', '/tmp/' + cn_name + '_payload.json') }}"
         body_format: json
         validate_certs: no
         return_content: yes
-        # The dest path is also on the remote server
         dest: "/tmp/{{ cn_name }}_response.json"
         proxy: "{{ https_proxy }}"
       register: enrollment_response
@@ -97,7 +95,6 @@
           IncludeChain: true
           Password: "{{ password }}"
         body_format: json
-        # The dest path is also on the remote server
         dest: "/tmp/{{ cn_name }}.pfx"
         validate_certs: no
         proxy: "{{ https_proxy }}"
