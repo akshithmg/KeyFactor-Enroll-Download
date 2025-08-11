@@ -108,9 +108,3 @@
       ansible.builtin.command:
         cmd: "mv {{ inventory_dir }}/payload.json {{ inventory_dir }}/response.json {{ inventory_dir }}/{{ cn_name }}.pfx {{ inventory_dir }}/{{ change_number }}"
 
-    - name: Create tar archive of backup
-      ansible.builtin.archive:
-        path: "{{ inventory_dir }}/{{ change_number }}"
-        dest: "{{ inventory_dir }}/{{ change_number }}.tar"
-        format: tar
-        remove: yes
