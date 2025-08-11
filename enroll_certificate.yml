@@ -77,7 +77,7 @@
         validate_certs: no
         return_content: yes
         dest: "/tmp/{{ cn_name }}_response.json"
-        proxy: "{{ https_proxy }}"
+        use_proxy: no
       register: enrollment_response
 
     - name: Extract thumbprint from enrollment response
@@ -101,7 +101,7 @@
         body_format: json
         dest: "/tmp/{{ cn_name }}.pfx"
         validate_certs: no
-        proxy: "{{ https_proxy }}"
+        use_proxy: no
 
     - name: Create backup directory
       ansible.builtin.file:
