@@ -6,7 +6,7 @@
   # These variables are expected to be passed by the AWX Survey or a vaulted file.
   # - change_number
   # - cn_name
-  - ca_name
+  # - ca_name
   # - password
   # - dns_names_input
   # - ip_addresses_input
