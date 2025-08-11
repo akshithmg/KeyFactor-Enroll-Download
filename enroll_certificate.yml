@@ -1,7 +1,6 @@
 ---
 - name: Enroll and download Keyfactor certificate via AWX
-  hosts: localhost
-  connection: local
+  hosts: server01
   gather_facts: yes
 
   # These variables are expected to be passed by the AWX Survey or a vaulted file.
